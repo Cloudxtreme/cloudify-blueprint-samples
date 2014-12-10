@@ -10,20 +10,16 @@ imports:
 inputs:
 
   image:
-    default: 123
+    default: Ubuntu Server 12.04.5 LTS (amd64 20140927) - Partner Image
 
   flavor:
     default: 102
 
-  elasticsearch_nodes:
-    default: 3
-
-  logstash_nodes:
-    default: 2
-
   user:
     default: ubuntu
 
+  logstash_udp_input_port:
+    default: 999
 
 node_types:
 
@@ -37,7 +33,7 @@ node_types:
   #       create: scripts/openjdk/install.sh
 
   elk.nodes.JavaServer:
-    derived_from: cloudify.nodes.ApplicationServer
+    derived_from: cloudify.openstack.nodes.Server
     properties:
       cloudify_agent:
         default:
@@ -46,18 +42,24 @@ node_types:
         default:
           image: { get_input: image }
           flavor: { get_input: flavor }
-    interfaces:
-      cloudify.interfaces.lifecycle:
-        create: scripts/openjdk/install.sh
+          userdata: |
+            sudo apt-get install openjdk-7-jdk -y
 
   elk.nodes.LogstashApplcation:
     derived_from: cloudify.nodes.ApplicationModule
+    properties:
+      udp_listener_port:
+        description: >
+          The port logstash will be listening on
+        type: integer
+        default: 999
     interfaces:
       cloudify.interfaces.lifecycle:
-        create: scripts/logstash/lifecycle/install.sh
-        configure: scripts/logstash/lifecycle/configure.sh
-        start: scripts/logstash/lifecycle/start.sh
-        stop: scripts/logstash/lifecycle/stop.sh
+        create: scripts/logstash/install.sh
+        configure: scripts/logstash/configure.sh
+        # relationships: postconfigure
+        start: scripts/logstash/start.sh
+        stop: scripts/logstash/stop.sh
 
   elk.nodes.ElasticsearchApplication:
     derived_from: cloudify.nodes.DBMS
@@ -72,10 +74,11 @@ node_types:
     derived_from: cloudify.nodes.ApplicationModule
     interfaces:
       cloudify.interfaces.lifecycle:
-        create: scripts/kibana/lifecycle/install.sh
-        configure: scripts/kibana/lifecycle/configure.sh
-        start: scripts/kibana/lifecycle/start.sh
-        stop: scripts/kibana/lifecycle/stop.sh
+        create: scripts/kibana/install.sh
+        configure: scripts/kibana/configure.sh
+        # relationships: postconfigure
+        start: scripts/kibana/start.sh
+        stop: scripts/kibana/stop.sh
 
 
 relationships:
@@ -132,7 +135,8 @@ node_templates:
   logstash:
     type: elk.nodes.LogstashApplcation
     properties:
-        udp_listener_port: 999
+      # make this configurable in logstash.conf
+      udp_listener_port: { get_input: logstash_udp_input_port }
     relationships:
       - target: logstash_host
         type: cloudify.relationships.contained_in
@@ -163,7 +167,7 @@ node_templates:
         name: logstash_security_group
       rules:
         - remote_ip_prefix: 0.0.0.0/0
-          port: { get_property: [logstash, udp_listener_port]}
+          port: { get_property: [logstash, udp_listener_port] }
 
   kibana_security_group:
     type: cloudify.openstack.nodes.SecurityGroup
@@ -185,9 +189,10 @@ outputs:
   kibana_endpoint:
     description: Kibana access information
     value:
-      ip_address: { get_attribute: [ kibana_floatingip, floating_ip_address] }
-      port: { get_property: [ kibana_security_group, rules, port ] }
+      ip_address: { get_attribute: [kibana_floating_ip, floating_ip_address] }
+      port: { get_property: [kibana_security_group, rules, 0, port] }
   logstash_endpoint:
     description: Logstash listener information
-      ip_address: { get_attribute: [logstash_floating_ip, floating_ip_address]}
-      port: { get_property: [logstash, udp_listener_port]}
+    value:
+      ip_address: { get_attribute: [logstash_floating_ip, floating_ip_address] }
+      port: { get_property: [logstash, udp_listener_port] }

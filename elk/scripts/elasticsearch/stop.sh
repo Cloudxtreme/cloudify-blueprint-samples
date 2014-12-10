@@ -2,6 +2,8 @@
 
 set -e
 
+MODULE="Elasticsearch"
+
 function stop()
 {
     # ctx logger debug "Updating rc.d to disable elasticsearch"

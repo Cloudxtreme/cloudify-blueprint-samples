@@ -39,7 +39,7 @@ function install()
 
 function install_contrib_plugins()
 {
-    sudo logstash/bin/plugin install contrib
+    sudo /opt/logstash/bin/plugin install contrib
 }
 
 ctx logger debug "Updating Local Cache"

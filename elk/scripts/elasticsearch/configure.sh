@@ -2,11 +2,13 @@
 
 set -e
 
-function configure_elasticsearch()
+MODULE="Elasticsearch"
+
+function configure()
 {
     ctx logger debug "Currently no configuration required"
 }
 
-ctx logger info "Configuring Elasticsearch"
-configure_elasticsearch
+ctx logger info "Configuring ${MODULE}"
+configure
 ctx logger info "Configuration Completed Successfully!"
