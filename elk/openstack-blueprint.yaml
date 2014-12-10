@@ -1,0 +1,172 @@
+tosca_definitions_version: cloudify_dsl_1_0
+
+
+imports:
+
+  - http://www.getcloudify.org/spec/cloudify/3.1/types.yaml
+  - http://www.getcloudify.org/spec/openstack-plugin/1.1/plugin.yaml
+
+
+inputs:
+
+  image:
+    default: 123
+
+  flavor:
+    default: 102
+
+  elasticsearch_nodes:
+    default: 3
+
+  logstash_nodes:
+    default: 2
+
+  user:
+    default: ubuntu
+
+
+node_types:
+
+  elk.nodes.JavaServer:
+    derived_from: cloudify.nodes.ApplicationServer
+    properties:
+      cloudify_agent:
+        default:
+          user: { get_input: user }
+      server:
+        default:
+          image: { get_input: image }
+          flavor: { get_input: flavor }
+    interfaces:
+      cloudify.interfaces.lifecycle:
+        create: scripts/openjdk/install.sh
+
+  elk.nodes.LogstashApplcation:
+    derived_from: cloudify.nodes.ApplicationModule
+    interfaces:
+      cloudify.interfaces.lifecycle:
+        create: scripts/logstash/lifecycle/install.sh
+        configure: scripts/logstash/lifecycle/configure.sh
+        start: scripts/logstash/lifecycle/start.sh
+        stop: scripts/logstash/lifecycle/stop.sh
+
+  elk.nodes.ElasticsearchApplication:
+    derived_from: cloudify.nodes.DBMS
+    interfaces:
+      cloudify.interfaces.lifecycle:
+        create: scripts/elasticsearch/install.sh
+        configure: scripts/elasticsearch/configure.sh
+        start: scripts/elasticsearch/start.sh
+        stop: scripts/elasticsearch/stop.sh
+
+  elk.nodes.KibanaApplication:
+    derived_from: cloudify.nodes.ApplicationModule
+    interfaces:
+      cloudify.interfaces.lifecycle:
+        create: scripts/kibana/lifecycle/install.sh
+        configure: scripts/kibana/lifecycle/configure.sh
+        start: scripts/kibana/lifecycle/start.sh
+        stop: scripts/kibana/lifecycle/stop.sh
+
+
+relationships:
+
+  logstash_connected_to_elasticearch:
+    derived_from: cloudify.relationships.connected_to
+    target_interfaces:
+      cloudify.interfaces.relationship_lifecycle:
+        postconfigure: scripts/logstash/relationships/set-elasticsearch-host.sh
+
+  kibana_connected_to_elasticearch:
+    derived_from: cloudify.relationships.connected_to
+    target_interfaces:
+      cloudify.interfaces.relationship_lifecycle:
+        postconfigure: scripts/kibana/relationships/set-elasticsearch-host.sh
+
+
+node_templates:
+
+  elasticsearch_host:
+    type: elk.nodes.JavaServer
+    instances:
+      deploy: 2
+    relationships:
+      - target: elasticsearch_security_group
+        type: cloudify.openstack.server_connected_to_security_group
+
+  logstash_host:
+    type: elk.nodes.JavaServer
+    instances:
+      deploy: 2
+    relationships:
+      - target: logstash_security_group
+        type: cloudify.openstack.server_connected_to_security_group
+      - target: logstash_floating_ip
+        type: cloudify.openstack.server_connected_to_floating_ip
+
+  kibana_host:
+    type: elk.nodes.JavaServer
+    instances:
+      deploy: 1
+    relationships:
+      - target: kibana_security_group
+        type: cloudify.openstack.server_connected_to_security_group
+      - target: kibana_floating_ip
+        type: cloudify.openstack.server_connected_to_floating_ip
+
+  elasticsearch:
+    type: elk.nodes.ElasticsearchApplication
+    relationships:
+      - target: elasticsearch_host
+        type: cloudify.relationships.contained_in
+
+  logstash:
+    type: elk.nodes.LogstashApplcation
+    properties:
+        udp_listener_port: 999
+    relationships:
+      - target: logstash_host
+        type: cloudify.relationships.contained_in
+      - target: elasticsearch
+        type: logstash_connected_to_elasticearch
+
+  kibana:
+    type: elk.nodes.KibanaApplication
+    relationships:
+      - target: kibana_host
+        type: cloudify.relationships.contained_in
+      - target: elasticsearch
+        type: kibana_connected_to_elasticearch
+
+  elasticsearch_security_group:
+    type: cloudify.openstack.nodes.SecurityGroup
+    properties:
+      security_group:
+        name: elasticsearch_security_group
+      rules:
+        - remote_ip_prefix: 0.0.0.0/0
+          port: 9200
+
+  logstash_security_group:
+    type: cloudify.openstack.nodes.SecurityGroup
+    properties:
+      security_group:
+        name: logstash_security_group
+      rules:
+        - remote_ip_prefix: 0.0.0.0/0
+          port: 999
+
+  kibana_security_group:
+    type: cloudify.openstack.nodes.SecurityGroup
+    properties:
+      security_group:
+        name: kibana_security_group
+      rules:
+        - remote_ip_prefix: 0.0.0.0/0
+          port: 5601
+
+  logstash_floating_ip:
+    type: cloudify.openstack.nodes.FloatingIP
+
+  kibana_floating_ip:
+    type: cloudify.openstack.nodes.FloatingIP
