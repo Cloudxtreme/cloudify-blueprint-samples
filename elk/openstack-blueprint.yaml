@@ -28,18 +28,27 @@ inputs:
 node_types:
 
   elk.nodes.JavaServer:
-    derived_from: cloudify.nodes.ApplicationServer
+    type: cloudify.nodes.Compute
     properties:
-      cloudify_agent:
-        default:
-          user: { get_input: user }
-      server:
-        default:
-          image: { get_input: image }
-          flavor: { get_input: flavor }
+      ip: localhost
+      install_agent: false
     interfaces:
       cloudify.interfaces.lifecycle:
         create: scripts/openjdk/install.sh
+
+  # elk.nodes.JavaServer:
+  #   derived_from: cloudify.nodes.ApplicationServer
+  #   properties:
+  #     cloudify_agent:
+  #       default:
+  #         user: { get_input: user }
+  #     server:
+  #       default:
+  #         image: { get_input: image }
+  #         flavor: { get_input: flavor }
+  #   interfaces:
+  #     cloudify.interfaces.lifecycle:
+  #       create: scripts/openjdk/install.sh
 
   elk.nodes.LogstashApplcation:
     derived_from: cloudify.nodes.ApplicationModule
@@ -89,7 +98,7 @@ node_templates:
   elasticsearch_host:
     type: elk.nodes.JavaServer
     instances:
-      deploy: 2
+      deploy: 1
     relationships:
       - target: elasticsearch_security_group
         type: cloudify.openstack.server_connected_to_security_group
@@ -97,7 +106,7 @@ node_templates:
   logstash_host:
     type: elk.nodes.JavaServer
     instances:
-      deploy: 2
+      deploy: 1
     relationships:
       - target: logstash_security_group
         type: cloudify.openstack.server_connected_to_security_group
@@ -154,7 +163,7 @@ node_templates:
         name: logstash_security_group
       rules:
         - remote_ip_prefix: 0.0.0.0/0
-          port: 999
+          port: { get_property: [logstash, udp_listener_port]}
 
   kibana_security_group:
     type: cloudify.openstack.nodes.SecurityGroup
@@ -170,3 +179,15 @@ node_templates:
 
   kibana_floating_ip:
     type: cloudify.openstack.nodes.FloatingIP
+
+
+outputs:
+  kibana_endpoint:
+    description: Kibana access information
+    value:
+      ip_address: { get_attribute: [ kibana_floatingip, floating_ip_address] }
+      port: { get_property: [ kibana_security_group, rules, port ] }
+  logstash_endpoint:
+    description: Logstash listener information
+      ip_address: { get_attribute: [logstash_floating_ip, floating_ip_address]}
+      port: { get_property: [logstash, udp_listener_port]}
