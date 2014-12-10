@@ -52,7 +52,7 @@ node_types:
         description: >
           The port logstash will be listening on
         type: integer
-        default: 999
+        default: { get_input: logstash_udp_input_port }
     interfaces:
       cloudify.interfaces.lifecycle:
         create: scripts/logstash/install.sh
