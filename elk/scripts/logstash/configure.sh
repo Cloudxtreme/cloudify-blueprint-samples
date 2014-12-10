@@ -2,12 +2,13 @@
 
 set -e
 
-function configure_logstash()
+function configure()
 {
-    ctx download-resource resources/logstash_config.conf ~/logstash/logstash.conf
-    ELASTICSEARCH_IP=$(ctx target instance runtime_properties nodejs_binaries_path)
+    ctx download-resource resources/logstash_config.conf /opt/logstash/logstash.conf
+    ELASTICSEARCH_IP_ADDRESS=$(ctx instance runtime-properties elasticsearch_ip_address)
+    sudo sed -i s|HOST_PLACEHOLDER|${ELASTICSEARCH_IP_ADDRESS}|g /opt/logstash/logstash.conf
 }
 
 ctx logger info "Configuring Logstash"
-configure_logstash
+configure
 ctx logger info "Configuration Completed Successfully!"

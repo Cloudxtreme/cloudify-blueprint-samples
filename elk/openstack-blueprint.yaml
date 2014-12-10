@@ -27,28 +27,28 @@ inputs:
 
 node_types:
 
-  elk.nodes.JavaServer:
-    type: cloudify.nodes.Compute
-    properties:
-      ip: localhost
-      install_agent: false
-    interfaces:
-      cloudify.interfaces.lifecycle:
-        create: scripts/openjdk/install.sh
-
   # elk.nodes.JavaServer:
-  #   derived_from: cloudify.nodes.ApplicationServer
+  #   type: cloudify.nodes.Compute
   #   properties:
-  #     cloudify_agent:
-  #       default:
-  #         user: { get_input: user }
-  #     server:
-  #       default:
-  #         image: { get_input: image }
-  #         flavor: { get_input: flavor }
+  #     ip: localhost
+  #     install_agent: false
   #   interfaces:
   #     cloudify.interfaces.lifecycle:
   #       create: scripts/openjdk/install.sh
+
+  elk.nodes.JavaServer:
+    derived_from: cloudify.nodes.ApplicationServer
+    properties:
+      cloudify_agent:
+        default:
+          user: { get_input: user }
+      server:
+        default:
+          image: { get_input: image }
+          flavor: { get_input: flavor }
+    interfaces:
+      cloudify.interfaces.lifecycle:
+        create: scripts/openjdk/install.sh
 
   elk.nodes.LogstashApplcation:
     derived_from: cloudify.nodes.ApplicationModule
@@ -82,15 +82,15 @@ relationships:
 
   logstash_connected_to_elasticearch:
     derived_from: cloudify.relationships.connected_to
-    target_interfaces:
+    source_interfaces:
       cloudify.interfaces.relationship_lifecycle:
-        postconfigure: scripts/logstash/relationships/set-elasticsearch-host.sh
+        postconfigure: scripts/logstash/set-elasticsearch-host.sh
 
   kibana_connected_to_elasticearch:
     derived_from: cloudify.relationships.connected_to
-    target_interfaces:
+    source_interfaces:
       cloudify.interfaces.relationship_lifecycle:
-        postconfigure: scripts/kibana/relationships/set-elasticsearch-host.sh
+        postconfigure: scripts/kibana/set-elasticsearch-host.sh
 
 
 node_templates:
