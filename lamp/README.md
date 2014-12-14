@@ -5,7 +5,7 @@ This blueprint installs the LAMP (Linux, Apache, MySQL, PHP) stack on an Ubuntu 
 
 The topology is described in the following diagram:
 
-[LAMP Topology](/lamp_topology.png)
+[LAMP Topology](lamp_topology.png)
 
 ### Plugins
 
