@@ -7,8 +7,9 @@
 # run commands remotely
 #
 # Limitations:
-#   - Agent host must be ubuntu (12.04 and above)
-###########################################################
+#   - agent host must be ubuntu (12.04 and above)
+#   - agent host must allow sudo commands for the given user
+##############################################################
 
 tosca_definitions_version: cloudify_dsl_1_0
 
